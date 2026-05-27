@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Musée du Louvre — Mapa de obras maestras</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --ink: #1c1814;
+  --brown: #4a3728;
+  --muted: #7a6e5f;
+  --border: #ddd5c0;
+  --gold: #9a6f2a;
+  --gold-light: #c4992e;
+  --accent: #2c5f8a;
+  --rust: #8b3a1e;
+  --green: #1a6b4a;
+  --amber: #8b6010;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--ink);
+  color: #f2ead8;
+  text-align: center;
+  padding: 40px 20px 32px;
+  border-bottom: 3px solid var(--gold);
+}
+header .eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--gold-light);
+  margin-bottom: 10px;
+}
+header h1 {
+  font-family: 'Libre Baskerville', serif;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  line-height: 1.15;
+}
+header h1 em { font-style: italic; }
+header .subtitle {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #9a8f7f;
+}
+
+/* ── LAYOUT ── */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  max-width: 1240px;
+  margin: 0 auto;
+  gap: 0;
+  min-height: calc(100vh - 160px);
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { border-left: none; border-top: 2px solid var(--border); }
+}
+
+/* ── MAP AREA ── */
+.map-area {
+  padding: 28px 24px;
+  background: var(--bg);
+}
+.map-wrap {
+  background: #f0ebe0;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 20px 16px 16px;
+  position: relative;
+}
+svg { display: block; width: 100%; height: auto; }
+
+/* Pins */
+.pin { cursor: pointer; }
+.pin circle.bg { transition: r 0.12s; }
+.pin:hover circle.bg { r: 15; }
+.pin.active circle.bg { r: 15; }
+.pin.active circle.ring { stroke-width: 3.5; }
+.pin-label {
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+.sala-label {
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  fill: rgba(100,80,50,0.65);
+  pointer-events: none;
+}
+.wing-label {
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  fill: rgba(74,55,40,0.45);
+}
+.route {
+  stroke-dasharray: 7 5;
+  animation: march 18s linear infinite;
+}
+@keyframes march { to { stroke-dashoffset: -240; } }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  border-left: 2px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Empty state */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+  text-align: center;
+  color: var(--muted);
+}
+.empty-state .icon {
+  width: 48px; height: 48px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 20px;
+}
+.empty-state p {
+  font-family: 'Libre Baskerville', serif;
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Info card */
+.info-card {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+}
+.info-card.vis { display: flex; }
+
+.info-header {
+  background: var(--ink);
+  color: #f2ead8;
+  padding: 24px 28px 20px;
+  border-bottom: 3px solid var(--gold);
+  position: relative;
+}
+.info-header::before {
+  content: attr(data-num);
+  position: absolute;
+  top: 18px; right: 22px;
+  font-family: 'Libre Baskerville', serif;
+  font-size: 3rem;
+  font-style: italic;
+  color: rgba(201,168,76,0.2);
+  line-height: 1;
+  pointer-events: none;
+}
+.info-sala {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gold);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+  margin-bottom: 12px;
+}
+.info-title {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.25;
+  color: #f2ead8;
+  margin-bottom: 6px;
+}
+.info-artist {
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #9a8f7f;
+}
+.info-body {
+  padding: 22px 28px;
+  flex: 1;
+  overflow-y: auto;
+}
+.info-desc {
+  font-size: 0.92rem;
+  line-height: 1.8;
+  color: #3d3020;
+  margin-bottom: 20px;
+}
+.info-details {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.detail-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.detail-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-width: 70px;
+  padding-top: 1px;
+}
+.detail-val {
+  font-size: 0.82rem;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+/* ── STEP LIST ── */
+.step-list {
+  border-top: 2px solid var(--border);
+  padding: 0;
+}
+.step-item {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.step-item:hover { background: #f8f4ec; }
+.step-item.current { background: #f2ebe0; }
+.step-n {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Libre Baskerville', serif;
+  font-style: italic;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.step-info { flex: 1; min-width: 0; }
+.step-name {
+  font-family: 'Libre Baskerville', serif;
+  font-style: italic;
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+.step-sala {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── LEGEND ── */
+.legend {
+  background: #f8f4ec;
+  border-top: 1px solid var(--border);
+  padding: 14px 20px;
+}
+.legend-title {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.leg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+.leg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.68rem;
+  color: var(--brown);
+}
+.leg-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%; flex-shrink: 0;
+}
+
+/* ── FOOTER ── */
+footer {
+  background: var(--ink);
+  color: #9a8f7f;
+  text-align: center;
+  padding: 16px;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Paris · France · Fondé en 1793</div>
+  <h1>Musée du <em>Louvre</em></h1>
+  <div class="subtitle">Mapa de obras maestras · 9 paradas · Ruta verificada 2025–2026</div>
+</header>
+
+<div class="layout">
+
+  <!-- MAP -->
+  <div class="map-area">
+    <div class="map-wrap">
+      <svg id="mapSvg" viewBox="0 0 640 520" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="rgba(154,111,42,0.8)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <!-- Cour Napoléon -->
+        <rect x="210" y="185" width="220" height="155" rx="4" fill="rgba(180,165,130,0.12)" stroke="rgba(74,55,40,0.2)" stroke-width="1"/>
+        <text class="wing-label" x="320" y="252" text-anchor="middle">Cour Napoléon</text>
+        <polygon points="320,202 303,232 337,232" fill="none" stroke="rgba(154,111,42,0.4)" stroke-width="1.2"/>
+        <text font-family="Source Sans 3,sans-serif" font-size="8" fill="rgba(154,111,42,0.5)" text-anchor="middle" x="320" y="248">▲ Pirámide</text>
+
+        <!-- ALA DENON -->
+        <rect x="30" y="38" width="158" height="444" rx="5" fill="rgba(240,230,210,0.5)" stroke="rgba(74,55,40,0.3)" stroke-width="1.5"/>
+        <text class="wing-label" x="109" y="54" text-anchor="middle" letter-spacing="3">ALA DENON</text>
+
+        <!-- ALA RICHELIEU -->
+        <rect x="210" y="38" width="220" height="120" rx="5" fill="rgba(240,230,210,0.5)" stroke="rgba(74,55,40,0.3)" stroke-width="1.5"/>
+        <text class="wing-label" x="320" y="54" text-anchor="middle" letter-spacing="3">ALA RICHELIEU</text>
+
+        <!-- ALA SULLY -->
+        <rect x="452" y="38" width="158" height="444" rx="5" fill="rgba(240,230,210,0.5)" stroke="rgba(74,55,40,0.3)" stroke-width="1.5"/>
+        <text class="wing-label" x="531" y="54" text-anchor="middle" letter-spacing="3">ALA SULLY</text>
+
+        <!-- Zonas interiores -->
+        <rect x="42" y="68" width="134" height="200" rx="3" fill="rgba(44,95,138,0.07)" stroke="rgba(44,95,138,0.2)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="wing-label" x="109" y="82" text-anchor="middle" fill="rgba(44,95,138,0.5)" font-size="7">Pintura italiana</text>
+
+        <rect x="42" y="295" width="134" height="172" rx="3" fill="rgba(139,58,30,0.07)" stroke="rgba(139,58,30,0.2)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="wing-label" x="109" y="310" text-anchor="middle" fill="rgba(139,58,30,0.5)" font-size="7">Romanticismo fr.</text>
+
+        <rect x="464" y="68" width="134" height="185" rx="3" fill="rgba(26,107,74,0.07)" stroke="rgba(26,107,74,0.2)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="wing-label" x="531" y="82" text-anchor="middle" fill="rgba(26,107,74,0.5)" font-size="7">Antigüedades egipcias</text>
+
+        <rect x="464" y="280" width="134" height="185" rx="3" fill="rgba(26,107,74,0.07)" stroke="rgba(26,107,74,0.2)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="wing-label" x="531" y="295" text-anchor="middle" fill="rgba(26,107,74,0.5)" font-size="7">Antigüedades griegas</text>
+
+        <rect x="222" y="68" width="196" height="95" rx="3" fill="rgba(44,95,138,0.07)" stroke="rgba(44,95,138,0.2)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="wing-label" x="320" y="82" text-anchor="middle" fill="rgba(44,95,138,0.5)" font-size="7">Escultura italiana · S.400–403</text>
+
+        <!-- RUTA -->
+        <path d="M320 355 L320 338 L192 338 L192 252" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M192 202 L192 176 L109 176 L109 208" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M109 258 L109 286" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M109 328 L109 362" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M90 392 L72 392 L72 422" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M72 452 L72 478 L531 478 L531 453" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M531 405 L531 372" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M510 322 L464 322 L400 322 L400 148 L362 148 L362 118" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M298 100 L278 100" fill="none" stroke="rgba(154,111,42,0.55)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+
+        <!-- ──── PINS ──── -->
+
+        <!-- 0: Entrada -->
+        <g class="pin" id="p0" onclick="activar(0)">
+          <circle class="bg" cx="320" cy="362" r="12" fill="#faf7f2" stroke="rgba(74,55,40,0.4)" stroke-width="1.5" class="ring"/>
+          <circle cx="320" cy="362" r="5" fill="rgba(122,110,95,0.7)"/>
+          <text class="sala-label" x="320" y="379" text-anchor="middle">ENTRADA</text>
+        </g>
+
+        <!-- 1: Victoria S.703 -->
+        <g class="pin" id="p1" onclick="activar(1)">
+          <circle class="bg ring" cx="192" cy="227" r="13" fill="#faf7f2" stroke="#1a6b4a" stroke-width="2"/>
+          <text class="pin-label" x="192" y="231" text-anchor="middle" dominant-baseline="central" fill="#1a6b4a">1</text>
+          <text class="sala-label" x="168" y="227" text-anchor="end" dominant-baseline="central">S.703</text>
+        </g>
+
+        <!-- 2: Gioconda S.711 -->
+        <g class="pin" id="p2" onclick="activar(2)">
+          <circle class="bg ring" cx="109" cy="233" r="13" fill="#faf7f2" stroke="#9a6f2a" stroke-width="2"/>
+          <text class="pin-label" x="109" y="237" text-anchor="middle" dominant-baseline="central" fill="#9a6f2a">2</text>
+          <text class="sala-label" x="89" y="233" text-anchor="end" dominant-baseline="central">S.711</text>
+        </g>
+
+        <!-- 3: Bodas de Caná S.711 -->
+        <g class="pin" id="p3" onclick="activar(3)">
+          <circle class="bg ring" cx="109" cy="307" r="13" fill="#faf7f2" stroke="#9a6f2a" stroke-width="2"/>
+          <text class="pin-label" x="109" y="311" text-anchor="middle" dominant-baseline="central" fill="#9a6f2a">3</text>
+          <text class="sala-label" x="89" y="307" text-anchor="end" dominant-baseline="central">S.711</text>
+        </g>
+
+        <!-- 4: Balsa S.700 -->
+        <g class="pin" id="p4" onclick="activar(4)">
+          <circle class="bg ring" cx="109" cy="377" r="13" fill="#faf7f2" stroke="#8b3a1e" stroke-width="2"/>
+          <text class="pin-label" x="109" y="381" text-anchor="middle" dominant-baseline="central" fill="#8b3a1e">4</text>
+          <text class="sala-label" x="89" y="377" text-anchor="end" dominant-baseline="central">S.700</text>
+        </g>
+
+        <!-- 5: Libertad S.700 -->
+        <g class="pin" id="p5" onclick="activar(5)">
+          <circle class="bg ring" cx="72" cy="437" r="13" fill="#faf7f2" stroke="#8b3a1e" stroke-width="2"/>
+          <text class="pin-label" x="72" y="441" text-anchor="middle" dominant-baseline="central" fill="#8b3a1e">5</text>
+          <text class="sala-label" x="92" y="437" text-anchor="start" dominant-baseline="central">S.700</text>
+        </g>
+
+        <!-- 6: Venus de Milo S.345 -->
+        <g class="pin" id="p6" onclick="activar(6)">
+          <circle class="bg ring" cx="531" cy="429" r="13" fill="#faf7f2" stroke="#1a6b4a" stroke-width="2"/>
+          <text class="pin-label" x="531" y="433" text-anchor="middle" dominant-baseline="central" fill="#1a6b4a">6</text>
+          <text class="sala-label" x="551" y="429" text-anchor="start" dominant-baseline="central">S.345</text>
+        </g>
+
+        <!-- 7: Escriba S.22 -->
+        <g class="pin" id="p7" onclick="activar(7)">
+          <circle class="bg ring" cx="531" cy="347" r="13" fill="#faf7f2" stroke="#8b6010" stroke-width="2"/>
+          <text class="pin-label" x="531" y="351" text-anchor="middle" dominant-baseline="central" fill="#8b6010">7</text>
+          <text class="sala-label" x="551" y="347" text-anchor="start" dominant-baseline="central">S.22</text>
+        </g>
+
+        <!-- 8: Esclavos S.403 -->
+        <g class="pin" id="p8" onclick="activar(8)">
+          <circle class="bg ring" cx="341" cy="100" r="13" fill="#faf7f2" stroke="#2c5f8a" stroke-width="2"/>
+          <text class="pin-label" x="341" y="104" text-anchor="middle" dominant-baseline="central" fill="#2c5f8a">8</text>
+          <text class="sala-label" x="361" y="100" text-anchor="start" dominant-baseline="central">S.403</text>
+        </g>
+
+        <!-- 9: Encajera S.837 -->
+        <g class="pin" id="p9" onclick="activar(9)">
+          <circle class="bg ring" cx="265" cy="100" r="13" fill="#faf7f2" stroke="#2c5f8a" stroke-width="2"/>
+          <text class="pin-label" x="265" y="104" text-anchor="middle" dominant-baseline="central" fill="#2c5f8a">9</text>
+          <text class="sala-label" x="245" y="100" text-anchor="end" dominant-baseline="central">S.837</text>
+        </g>
+
+        <!-- Brújula -->
+        <g opacity="0.5" transform="translate(612,492)">
+          <circle cx="0" cy="0" r="13" fill="none" stroke="rgba(74,55,40,0.35)" stroke-width="0.8"/>
+          <text font-family="Source Sans 3,sans-serif" font-size="8" font-weight="600" fill="rgba(74,55,40,0.6)" text-anchor="middle" y="-17">N</text>
+          <line x1="0" y1="-10" x2="0" y2="-5" stroke="rgba(74,55,40,0.5)" stroke-width="1"/>
+          <line x1="0" y1="5" x2="0" y2="10" stroke="rgba(74,55,40,0.4)" stroke-width="1"/>
+          <line x1="-10" y1="0" x2="-5" y2="0" stroke="rgba(74,55,40,0.4)" stroke-width="1"/>
+          <line x1="5" y1="0" x2="10" y2="0" stroke="rgba(74,55,40,0.4)" stroke-width="1"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="icon">✦</div>
+      <p>Toca un número en el mapa para ver la obra</p>
+    </div>
+
+    <!-- Info card -->
+    <div class="info-card" id="infoCard">
+      <div class="info-header" id="infoHeader" data-num="">
+        <div class="info-sala" id="infoSala"></div>
+        <div class="info-title" id="infoTitle"></div>
+        <div class="info-artist" id="infoArtist"></div>
+      </div>
+      <div class="info-body">
+        <p class="info-desc" id="infoDesc"></p>
+        <div class="info-details">
+          <div class="detail-row">
+            <div class="detail-label">Artista</div>
+            <div class="detail-val" id="dArtista"></div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Nac.</div>
+            <div class="detail-val" id="dNac"></div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Fecha</div>
+            <div class="detail-val" id="dFecha"></div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Ala · Sala</div>
+            <div class="detail-val" id="dLoc"></div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Planta</div>
+            <div class="detail-val" id="dPlanta"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step list -->
+    <div class="step-list" id="stepList"></div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-title">Colecciones</div>
+      <div class="leg-grid">
+        <div class="leg"><div class="leg-dot" style="background:#9a6f2a"></div>Pintura italiana</div>
+        <div class="leg"><div class="leg-dot" style="background:#8b3a1e"></div>Romanticismo fr.</div>
+        <div class="leg"><div class="leg-dot" style="background:#1a6b4a"></div>Escultura griega</div>
+        <div class="leg"><div class="leg-dot" style="background:#8b6010"></div>Antigüedades eg.</div>
+        <div class="leg"><div class="leg-dot" style="background:#2c5f8a"></div>Escultura italiana</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>Musée du Louvre · Salas verificadas 2025–2026 · Esclavos de Miguel Ángel: exp. temporal Hall Napoléon hasta jul. 2026</footer>
+
+<script>
+const obras = [
+  {
+    num: "·", title: "Pirámide de cristal", artist: "Entrada principal",
+    artista: "I.M. Pei", nac: "Estadounidense (n. China, 1917–2019)", fecha: "1989",
+    sala: "Hall Napoléon", planta: "Planta baja · Acceso central",
+    color: "#7a6e5f",
+    desc: "Empieza aquí. Entra al Hall Napoléon y dirígete al Ala Denon. La estrategia es llegar a primera hora antes de que las colas hacia la Gioconda se formen. Toca cada pin para seguir la ruta."
+  },
+  {
+    num: "1", title: "La Victoria de Samotracia", artist: "Anónimo griego · c. 190 a.C.",
+    artista: "Anónimo", nac: "Grecia · Período helenístico", fecha: "c. 190 a.C.",
+    sala: "Sala 703 · Escalera Daru · Ala Denon", planta: "Planta 1",
+    color: "#1a6b4a",
+    desc: "Nike en la proa de un barco, con el viento capturado en el mármol. Preside la gran escalera Daru con una presencia que corta la respiración. La mayoría pasa corriendo hacia la Gioconda y se la pierde — no lo hagas."
+  },
+  {
+    num: "2", title: "La Gioconda", artist: "Leonardo da Vinci · c. 1503–1519",
+    artista: "Leonardo da Vinci", nac: "Italiano (1452–1519)", fecha: "c. 1503–1519",
+    sala: "Sala 711 · Salle des États · Ala Denon", planta: "Planta 1",
+    color: "#9a6f2a",
+    desc: "La pintura más famosa del mundo. Más pequeña de lo que imaginas — solo 77×53 cm — pero la sala entera orbita a su alrededor. Llega a primera hora o después de las 17h para verla con menos multitudes."
+  },
+  {
+    num: "3", title: "Las bodas de Caná", artist: "Paolo Veronese · 1563",
+    artista: "Paolo Veronese", nac: "Italiano (1528–1588)", fecha: "1563",
+    sala: "Sala 711 · Salle des États · Ala Denon", planta: "Planta 1",
+    color: "#9a6f2a",
+    desc: "El cuadro más grande del Louvre: 9,9 × 6,7 metros. Robado por Napoleón en el monasterio veneciano de San Giorgio Maggiore, nunca regresó. Está justo enfrente de la Gioconda. Casi nadie lo mira."
+  },
+  {
+    num: "4", title: "La balsa de la Medusa", artist: "Théodore Géricault · 1819",
+    artista: "Théodore Géricault", nac: "Francés (1791–1824)", fecha: "1818–1819",
+    sala: "Sala 700 · Sala Mollien · Ala Denon", planta: "Planta 1",
+    color: "#8b3a1e",
+    desc: "Casi 5 × 7 metros. El naufragio de la fragata Méduse: 147 personas a la deriva, solo 15 sobrevivieron. Ícono del Romanticismo francés y de la crítica política. Géricault pintó con modelos tomados de cadáveres reales."
+  },
+  {
+    num: "5", title: "La Libertad guiando al pueblo", artist: "Eugène Delacroix · 1830",
+    artista: "Eugène Delacroix", nac: "Francés (1798–1863)", fecha: "1830",
+    sala: "Sala 700 · Sala Mollien · Ala Denon", planta: "Planta 1",
+    color: "#8b3a1e",
+    desc: "Marianne sobre la barricada con la bandera tricolor. Pintada en conmemoración de los Tres Días Gloriosos de julio de 1830. Misma sala que La balsa de la Medusa — dos gigantes del Romanticismo francés frente a frente."
+  },
+  {
+    num: "6", title: "Venus de Milo", artist: "Anónimo griego · c. 130–100 a.C.",
+    artista: "Anónimo", nac: "Grecia · Período helenístico", fecha: "c. 130–100 a.C.",
+    sala: "Sala 345 · Salle de la Vénus de Milo · Ala Sully", planta: "Planta 0 (baja)",
+    color: "#1a6b4a",
+    desc: "Cruza el Cour Napoléon hacia el Ala Sully. Junto a la Victoria y la Gioconda forma la trinidad del Louvre. Sus brazos ya faltaban cuando llegó al museo en 1821. La sala lleva su nombre desde 2010."
+  },
+  {
+    num: "7", title: "El escriba sentado", artist: "Anónimo egipcio · c. 2450–2325 a.C.",
+    artista: "Anónimo", nac: "Egipto antiguo · Dinastía IV–V", fecha: "c. 2450–2325 a.C.",
+    sala: "Sala 22 · Ala Sully · Antigüedades egipcias", planta: "Planta 1",
+    color: "#8b6010",
+    desc: "Sus ojos de cristal de roca con incrustaciones de cobre llevan más de 4.500 años mirando. Pequeña escultura de piedra caliza policromada descubierta en Saqqara en 1850. Una de las presencias más inquietantes del museo."
+  },
+  {
+    num: "8", title: "Los esclavos", artist: "Miguel Ángel · 1513–1515",
+    artista: "Miguel Ángel Buonarroti", nac: "Italiano (1475–1564)", fecha: "1513–1515",
+    sala: "⚠️ Exp. temporal · Hall Napoléon (hasta jul. 2026)", planta: "Sala habitual: S.403 · Ala Denon · P.0",
+    color: "#2c5f8a",
+    desc: "El Esclavo moribundo y el Esclavo rebelde. Comisionados para la tumba del Papa Julio II y finalmente abandonados. Las figuras emergen del mármol sin terminar de liberarse. Actualmente en la exposición Michelangelo-Rodin en el Hall Napoléon."
+  },
+  {
+    num: "9", title: "La encajera", artist: "Johannes Vermeer · c. 1669–1670",
+    artista: "Johannes Vermeer", nac: "Neerlandés (1632–1675)", fecha: "c. 1669–1670",
+    sala: "Sala 837 · Ala Richelieu · Pinturas flamencas y holandesas", planta: "Planta 2 (1ª en numeración europea)",
+    color: "#2c5f8a",
+    desc: "Una de las pinturas más pequeñas y perfectas del Louvre. Vermeer congela el instante de concentración de una joven con una luz que parece respirar. Solo existen entre 34 y 36 obras de Vermeer en el mundo. Fin del recorrido."
+  }
+];
+
+// Construir lista de paradas
+const sl = document.getElementById('stepList');
+obras.forEach((o,i) => {
+  const d = document.createElement('div');
+  d.className = 'step-item';
+  d.id = 'si'+i;
+  d.onclick = () => activar(i);
+  d.innerHTML = `
+    <div class="step-n" style="border-color:${o.color};color:${o.color}">${o.num}</div>
+    <div class="step-info">
+      <div class="step-name">${o.title}</div>
+      <div class="step-sala">${o.sala}</div>
+    </div>`;
+  sl.appendChild(d);
+});
+
+function activar(i) {
+  // Pines
+  document.querySelectorAll('.pin').forEach(p => p.classList.remove('active'));
+  const pin = document.getElementById('p'+i);
+  if (pin) pin.classList.add('active');
+
+  // Step list
+  document.querySelectorAll('.step-item').forEach((s,j) => {
+    s.classList.toggle('current', j===i);
+  });
+
+  const o = obras[i];
+
+  // Header color accent
+  const hdr = document.getElementById('infoHeader');
+  hdr.setAttribute('data-num', o.num);
+  hdr.style.borderBottomColor = o.color;
+
+  // Sala badge
+  const salaEl = document.getElementById('infoSala');
+  salaEl.textContent = 'Parada ' + (o.num === '·' ? '0' : o.num);
+  salaEl.style.background = o.color;
+
+  document.getElementById('infoTitle').textContent = o.title;
+  document.getElementById('infoArtist').textContent = o.artist;
+  document.getElementById('infoDesc').textContent = o.desc;
+  document.getElementById('dArtista').textContent = o.artista;
+  document.getElementById('dNac').textContent = o.nac;
+  document.getElementById('dFecha').textContent = o.fecha;
+  document.getElementById('dLoc').textContent = o.sala;
+  document.getElementById('dPlanta').textContent = o.planta;
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('infoCard').classList.add('vis');
+}
+</script>
+</body>
+</html>
