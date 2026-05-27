@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Musée du Louvre — Mapa de obras maestras</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#faf7f2; --surface:#ffffff; --ink:#1c1814;
+  --brown:#4a3728; --muted:#7a6e5f; --border:#ddd5c0;
+  --gold:#9a6f2a; --gold-light:#c4992e;
+}
+body { background:var(--bg); color:var(--ink); font-family:'Source Sans 3',sans-serif; font-size:16px; line-height:1.5; }
+
+header { background:var(--ink); color:#f2ead8; text-align:center; padding:36px 20px 28px; border-bottom:3px solid var(--gold); }
+header .eyebrow { font-size:0.68rem; letter-spacing:0.4em; text-transform:uppercase; color:var(--gold-light); margin-bottom:8px; }
+header h1 { font-family:'Libre Baskerville',serif; font-size:clamp(1.8rem,5vw,2.8rem); font-weight:400; }
+header h1 em { font-style:italic; }
+header .sub { margin-top:8px; font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase; color:#9a8f7f; }
+
+.layout { display:grid; grid-template-columns:1fr 380px; max-width:1240px; margin:0 auto; min-height:calc(100vh - 150px); }
+@media(max-width:900px){ .layout{grid-template-columns:1fr;} .sidebar{border-left:none;border-top:2px solid var(--border);} }
+
+.map-area { padding:24px 20px; }
+.map-wrap { background:#f0ebe0; border:1.5px solid var(--border); border-radius:6px; padding:18px 14px 14px; }
+svg { display:block; width:100%; height:auto; }
+
+/* Pins */
+.pin { cursor:pointer; }
+.pin circle.bg { transition:r 0.12s; }
+.pin:hover circle.bg { r:15; }
+.pin.active circle.bg { r:15; }
+.pin.active circle.ring { stroke-width:3.5; }
+.pin-num { font-family:'Libre Baskerville',serif; font-style:italic; font-size:12px; font-weight:700; pointer-events:none; }
+.sala-tag { font-family:'Source Sans 3',sans-serif; font-size:9px; font-weight:600; letter-spacing:0.06em; fill:rgba(80,60,30,0.62); pointer-events:none; }
+.wing-lbl { font-family:'Source Sans 3',sans-serif; font-size:7.5px; font-weight:600; letter-spacing:0.3em; text-transform:uppercase; fill:rgba(74,55,40,0.42); }
+.zone-lbl { font-family:'Source Sans 3',sans-serif; font-size:7px; font-weight:600; letter-spacing:0.2em; text-transform:uppercase; }
+.route { stroke-dasharray:7 5; animation:march 18s linear infinite; }
+@keyframes march { to{ stroke-dashoffset:-240; } }
+
+.sidebar { border-left:2px solid var(--border); background:var(--surface); display:flex; flex-direction:column; }
+
+.empty-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 28px; text-align:center; color:var(--muted); }
+.empty-state .ico { width:44px;height:44px; border:2px solid var(--border); border-radius:50%; display:flex;align-items:center;justify-content:center; margin:0 auto 14px; font-size:18px; }
+.empty-state p { font-family:'Libre Baskerville',serif; font-style:italic; font-size:1rem; line-height:1.65; }
+
+.info-card { display:none; flex-direction:column; }
+.info-card.vis { display:flex; }
+
+.info-hdr { background:var(--ink); color:#f2ead8; padding:22px 26px 18px; border-bottom:3px solid var(--gold); position:relative; overflow:hidden; }
+.info-hdr::after { content:attr(data-n); position:absolute; top:10px; right:18px; font-family:'Libre Baskerville',serif; font-style:italic; font-size:3.5rem; color:rgba(255,255,255,0.07); line-height:1; pointer-events:none; }
+.sala-badge { display:inline-block; font-size:0.72rem; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; padding:4px 10px; border-radius:2px; margin-bottom:10px; color:#fff; }
+.info-title { font-family:'Libre Baskerville',serif; font-style:italic; font-size:1.35rem; line-height:1.2; color:#f2ead8; margin-bottom:5px; }
+.info-artist { font-size:0.7rem; letter-spacing:0.14em; text-transform:uppercase; color:#9a8f7f; }
+
+.info-body { padding:20px 26px; flex:1; overflow-y:auto; }
+.info-desc { font-size:0.92rem; line-height:1.8; color:#3d3020; margin-bottom:18px; }
+.details { border-top:1px solid var(--border); padding-top:14px; display:flex; flex-direction:column; gap:7px; }
+.drow { display:flex; gap:10px; align-items:flex-start; }
+.dlabel { font-size:0.6rem; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); min-width:68px; padding-top:2px; flex-shrink:0; }
+.dval { font-size:0.82rem; color:var(--ink); line-height:1.4; }
+.dval.sala-big { font-size:1rem; font-weight:600; color:var(--ink); }
+
+.step-list { border-top:2px solid var(--border); }
+.step-item { display:flex; gap:12px; align-items:center; padding:10px 18px; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.14s; }
+.step-item:hover { background:#f8f4ec; }
+.step-item.cur { background:#f2ebe0; }
+.step-n { width:30px;height:30px; border-radius:50%; border:2px solid; display:flex;align-items:center;justify-content:center; font-family:'Libre Baskerville',serif; font-style:italic; font-size:13px; font-weight:700; flex-shrink:0; }
+.step-info { flex:1; min-width:0; }
+.step-name { font-family:'Libre Baskerville',serif; font-style:italic; font-size:0.86rem; color:var(--ink); line-height:1.25; margin-bottom:2px; }
+.step-sala { font-size:0.6rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+
+.legend { background:#f8f4ec; border-top:1px solid var(--border); padding:12px 18px; }
+.legend-title { font-size:0.58rem; font-weight:600; letter-spacing:0.28em; text-transform:uppercase; color:var(--muted); margin-bottom:9px; }
+.leg-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px 12px; }
+.leg { display:flex; align-items:center; gap:7px; font-size:0.66rem; color:var(--brown); }
+.leg-dot { width:9px;height:9px; border-radius:50%; flex-shrink:0; }
+
+footer { background:var(--ink); color:#7a6e5f; text-align:center; padding:14px; font-size:0.6rem; letter-spacing:0.18em; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Paris · France · Fondé en 1793</div>
+  <h1>Musée du <em>Louvre</em></h1>
+  <div class="sub">Mapa de obras maestras · 9 paradas · Salas verificadas 2026</div>
+</header>
+
+<div class="layout">
+
+  <div class="map-area">
+    <div class="map-wrap">
+      <svg viewBox="0 0 660 540" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="rgba(154,111,42,0.8)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <!-- Cour Napoléon -->
+        <rect x="218" y="193" width="224" height="158" rx="4" fill="rgba(180,165,130,0.1)" stroke="rgba(74,55,40,0.18)" stroke-width="1"/>
+        <text class="wing-lbl" x="330" y="260" text-anchor="middle">Cour Napoléon</text>
+        <polygon points="330,210 312,242 348,242" fill="none" stroke="rgba(154,111,42,0.38)" stroke-width="1.2"/>
+        <text font-family="Source Sans 3,sans-serif" font-size="8" fill="rgba(154,111,42,0.45)" text-anchor="middle" x="330" y="257">▲ Pirámide · Entrada</text>
+
+        <!-- ALA DENON -->
+        <rect x="32" y="40" width="160" height="460" rx="5" fill="rgba(240,230,210,0.45)" stroke="rgba(74,55,40,0.28)" stroke-width="1.5"/>
+        <text class="wing-lbl" x="112" y="57" text-anchor="middle" letter-spacing="3">ALA DENON</text>
+
+        <!-- ALA RICHELIEU -->
+        <rect x="218" y="40" width="224" height="122" rx="5" fill="rgba(240,230,210,0.45)" stroke="rgba(74,55,40,0.28)" stroke-width="1.5"/>
+        <text class="wing-lbl" x="330" y="57" text-anchor="middle" letter-spacing="3">ALA RICHELIEU</text>
+
+        <!-- ALA SULLY -->
+        <rect x="468" y="40" width="160" height="460" rx="5" fill="rgba(240,230,210,0.45)" stroke="rgba(74,55,40,0.28)" stroke-width="1.5"/>
+        <text class="wing-lbl" x="548" y="57" text-anchor="middle" letter-spacing="3">ALA SULLY</text>
+
+        <!-- Zonas coloreadas -->
+        <!-- Denon: pintura italiana (norte) -->
+        <rect x="44" y="70" width="136" height="195" rx="3" fill="rgba(44,95,138,0.06)" stroke="rgba(44,95,138,0.18)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="zone-lbl" x="112" y="85" text-anchor="middle" fill="rgba(44,95,138,0.45)">Pintura italiana</text>
+
+        <!-- Denon: Romanticismo (sur) -->
+        <rect x="44" y="295" width="136" height="188" rx="3" fill="rgba(139,58,30,0.06)" stroke="rgba(139,58,30,0.18)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="zone-lbl" x="112" y="311" text-anchor="middle" fill="rgba(139,58,30,0.45)">Romanticismo fr.</text>
+
+        <!-- Sully: Antigüedades EGIPCIAS (norte P.1) -->
+        <rect x="480" y="70" width="136" height="195" rx="3" fill="rgba(186,117,23,0.07)" stroke="rgba(186,117,23,0.2)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="zone-lbl" x="548" y="85" text-anchor="middle" fill="rgba(139,88,16,0.5)">Antigüedades egipcias</text>
+        <text class="zone-lbl" x="548" y="96" text-anchor="middle" fill="rgba(139,88,16,0.4)">P.1 · S.635</text>
+
+        <!-- Sully: Antigüedades GRIEGAS (sur P.0) -->
+        <rect x="480" y="290" width="136" height="192" rx="3" fill="rgba(26,107,74,0.06)" stroke="rgba(26,107,74,0.18)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="zone-lbl" x="548" y="306" text-anchor="middle" fill="rgba(26,107,74,0.5)">Antigüedades griegas</text>
+        <text class="zone-lbl" x="548" y="317" text-anchor="middle" fill="rgba(26,107,74,0.4)">P.0 · S.345</text>
+
+        <!-- Richelieu: escultura italiana -->
+        <rect x="230" y="70" width="200" height="95" rx="3" fill="rgba(44,95,138,0.06)" stroke="rgba(44,95,138,0.18)" stroke-width="0.5" stroke-dasharray="3,2"/>
+        <text class="zone-lbl" x="330" y="86" text-anchor="middle" fill="rgba(44,95,138,0.45)">Escultura italiana · S.400–403</text>
+
+        <!-- RUTA -->
+        <path d="M330 362 L330 344 L194 344 L194 258" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M194 208 L194 180 L112 180 L112 212" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M112 262 L112 290" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M112 332 L112 366" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M93 396 L74 396 L74 427" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <path d="M74 458 L74 492 L548 492 L548 462" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <!-- Venus → Escriba: de P.0 subir a P.1 (mismo ala Sully, zona norte) -->
+        <path d="M548 412 L548 380 L548 355 L548 330 L548 280 L548 230 L548 195" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <!-- Escriba → Esclavos: cruzar a Richelieu -->
+        <path d="M522 150 L468 150 L400 150 L400 118 L362 118 L362 100" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+        <!-- Esclavos → Encajera -->
+        <path d="M300 88 L280 88" fill="none" stroke="rgba(154,111,42,0.52)" stroke-width="1.8" class="route" marker-end="url(#ar)"/>
+
+        <!-- ──── PINS ──── -->
+
+        <!-- 0: Entrada -->
+        <g class="pin" id="p0" onclick="activar(0)">
+          <circle class="bg ring" cx="330" cy="370" r="12" fill="#faf7f2" stroke="rgba(74,55,40,0.4)" stroke-width="1.8"/>
+          <circle cx="330" cy="370" r="5" fill="rgba(100,80,50,0.6)"/>
+          <text class="sala-tag" x="330" y="388" text-anchor="middle">ENTRADA</text>
+        </g>
+
+        <!-- 1: Victoria S.703 · Denon P.1 · Escalera Daru -->
+        <g class="pin" id="p1" onclick="activar(1)">
+          <circle class="bg ring" cx="194" cy="233" r="13" fill="#faf7f2" stroke="#1a6b4a" stroke-width="2"/>
+          <text class="pin-num" x="194" y="237" text-anchor="middle" dominant-baseline="central" fill="#1a6b4a">1</text>
+          <text class="sala-tag" x="172" y="233" text-anchor="end" dominant-baseline="central">S.703</text>
+        </g>
+
+        <!-- 2: Gioconda S.711 · Denon P.1 -->
+        <g class="pin" id="p2" onclick="activar(2)">
+          <circle class="bg ring" cx="112" cy="237" r="13" fill="#faf7f2" stroke="#9a6f2a" stroke-width="2"/>
+          <text class="pin-num" x="112" y="241" text-anchor="middle" dominant-baseline="central" fill="#9a6f2a">2</text>
+          <text class="sala-tag" x="91" y="237" text-anchor="end" dominant-baseline="central">S.711</text>
+        </g>
+
+        <!-- 3: Bodas de Caná S.711 · Denon P.1 -->
+        <g class="pin" id="p3" onclick="activar(3)">
+          <circle class="bg ring" cx="112" cy="311" r="13" fill="#faf7f2" stroke="#9a6f2a" stroke-width="2"/>
+          <text class="pin-num" x="112" y="315" text-anchor="middle" dominant-baseline="central" fill="#9a6f2a">3</text>
+          <text class="sala-tag" x="91" y="311" text-anchor="end" dominant-baseline="central">S.711</text>
+        </g>
+
+        <!-- 4: Balsa S.700 · Denon P.1 -->
+        <g class="pin" id="p4" onclick="activar(4)">
+          <circle class="bg ring" cx="112" cy="381" r="13" fill="#faf7f2" stroke="#8b3a1e" stroke-width="2"/>
+          <text class="pin-num" x="112" y="385" text-anchor="middle" dominant-baseline="central" fill="#8b3a1e">4</text>
+          <text class="sala-tag" x="91" y="381" text-anchor="end" dominant-baseline="central">S.700</text>
+        </g>
+
+        <!-- 5: Libertad S.700 · Denon P.1 -->
+        <g class="pin" id="p5" onclick="activar(5)">
+          <circle class="bg ring" cx="74" cy="442" r="13" fill="#faf7f2" stroke="#8b3a1e" stroke-width="2"/>
+          <text class="pin-num" x="74" y="446" text-anchor="middle" dominant-baseline="central" fill="#8b3a1e">5</text>
+          <text class="sala-tag" x="94" y="442" text-anchor="start" dominant-baseline="central">S.700</text>
+        </g>
+
+        <!-- 6: Venus S.345 · Sully P.0 · zona griega (SUR) -->
+        <g class="pin" id="p6" onclick="activar(6)">
+          <circle class="bg ring" cx="548" cy="438" r="13" fill="#faf7f2" stroke="#1a6b4a" stroke-width="2"/>
+          <text class="pin-num" x="548" y="442" text-anchor="middle" dominant-baseline="central" fill="#1a6b4a">6</text>
+          <text class="sala-tag" x="568" y="438" text-anchor="start" dominant-baseline="central">S.345</text>
+        </g>
+
+        <!-- 7: Escriba S.635 · Sully P.1 · zona EGIPCIA (NORTE) -->
+        <g class="pin" id="p7" onclick="activar(7)">
+          <circle class="bg ring" cx="548" cy="170" r="13" fill="#faf7f2" stroke="#8b6010" stroke-width="2"/>
+          <text class="pin-num" x="548" y="174" text-anchor="middle" dominant-baseline="central" fill="#8b6010">7</text>
+          <text class="sala-tag" x="568" y="170" text-anchor="start" dominant-baseline="central">S.635</text>
+        </g>
+
+        <!-- 8: Esclavos S.403 · Denon P.0 (exp. temporal Hall Napoléon) -->
+        <g class="pin" id="p8" onclick="activar(8)">
+          <circle class="bg ring" cx="340" cy="92" r="13" fill="#faf7f2" stroke="#2c5f8a" stroke-width="2"/>
+          <text class="pin-num" x="340" y="96" text-anchor="middle" dominant-baseline="central" fill="#2c5f8a">8</text>
+          <text class="sala-tag" x="360" y="92" text-anchor="start" dominant-baseline="central">S.403*</text>
+        </g>
+
+        <!-- 9: Encajera S.837 · Richelieu P.2 -->
+        <g class="pin" id="p9" onclick="activar(9)">
+          <circle class="bg ring" cx="266" cy="92" r="13" fill="#faf7f2" stroke="#2c5f8a" stroke-width="2"/>
+          <text class="pin-num" x="266" y="96" text-anchor="middle" dominant-baseline="central" fill="#2c5f8a">9</text>
+          <text class="sala-tag" x="246" y="92" text-anchor="end" dominant-baseline="central">S.837</text>
+        </g>
+
+        <!-- Brújula -->
+        <g opacity="0.45" transform="translate(630,510)">
+          <circle cx="0" cy="0" r="13" fill="none" stroke="rgba(74,55,40,0.3)" stroke-width="0.8"/>
+          <text font-family="Source Sans 3,sans-serif" font-size="8" font-weight="600" fill="rgba(74,55,40,0.55)" text-anchor="middle" y="-17">N</text>
+          <line x1="0" y1="-10" x2="0" y2="-5" stroke="rgba(74,55,40,0.45)" stroke-width="1"/>
+          <line x1="0" y1="5" x2="0" y2="10" stroke="rgba(74,55,40,0.35)" stroke-width="1"/>
+          <line x1="-10" y1="0" x2="-5" y2="0" stroke="rgba(74,55,40,0.35)" stroke-width="1"/>
+          <line x1="5" y1="0" x2="10" y2="0" stroke="rgba(74,55,40,0.35)" stroke-width="1"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <div class="empty-state" id="emptyState">
+      <div class="ico">✦</div>
+      <p>Toca un número en el mapa para explorar la obra</p>
+    </div>
+
+    <div class="info-card" id="infoCard">
+      <div class="info-hdr" id="infoHdr" data-n="">
+        <div class="sala-badge" id="salaBadge"></div>
+        <div class="info-title" id="iTitle"></div>
+        <div class="info-artist" id="iArtist"></div>
+      </div>
+      <div class="info-body">
+        <p class="info-desc" id="iDesc"></p>
+        <div class="details">
+          <div class="drow">
+            <div class="dlabel">Artista</div>
+            <div class="dval" id="dArtista"></div>
+          </div>
+          <div class="drow">
+            <div class="dlabel">Nac.</div>
+            <div class="dval" id="dNac"></div>
+          </div>
+          <div class="drow">
+            <div class="dlabel">Fecha</div>
+            <div class="dval" id="dFecha"></div>
+          </div>
+          <div class="drow">
+            <div class="dlabel">Sala</div>
+            <div class="dval sala-big" id="dSala"></div>
+          </div>
+          <div class="drow">
+            <div class="dlabel">Ala · Planta</div>
+            <div class="dval" id="dAla"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-list" id="stepList"></div>
+
+    <div class="legend">
+      <div class="legend-title">Colecciones</div>
+      <div class="leg-grid">
+        <div class="leg"><div class="leg-dot" style="background:#9a6f2a"></div>Pintura italiana</div>
+        <div class="leg"><div class="leg-dot" style="background:#8b3a1e"></div>Romanticismo fr.</div>
+        <div class="leg"><div class="leg-dot" style="background:#1a6b4a"></div>Escultura griega</div>
+        <div class="leg"><div class="leg-dot" style="background:#8b6010"></div>Antigüedades eg.</div>
+        <div class="leg"><div class="leg-dot" style="background:#2c5f8a"></div>Escultura italiana</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Musée du Louvre · Salas verificadas 2026 · * Los Esclavos (S.403) están en exp. temporal Hall Napoléon hasta julio 2026</footer>
+
+<script>
+const obras = [
+  { num:"·", title:"Pirámide de cristal", artist:"Entrada principal",
+    artista:"I.M. Pei", nac:"Estadounidense-chino (1917–2019)", fecha:"1989",
+    sala:"Hall Napoléon", ala:"Acceso central · todas las plantas",
+    color:"#7a6e5f",
+    desc:"Empieza aquí. Desde el Hall Napoléon entra al Ala Denon. La estrategia: llegar a primera hora antes de que se formen las colas hacia la Gioconda. Toca cada número para seguir la ruta." },
+  { num:"1", title:"La Victoria de Samotracia", artist:"Anónimo griego · c. 190 a.C.",
+    artista:"Anónimo", nac:"Grecia · Período helenístico", fecha:"c. 190 a.C.",
+    sala:"Sala 703 · Escalera Daru", ala:"Ala Denon · Planta 1",
+    color:"#1a6b4a",
+    desc:"Nike en la proa de un barco, con el viento capturado en el mármol. Preside la gran escalera Daru. La mayoría pasa corriendo hacia la Gioconda — no cometas ese error." },
+  { num:"2", title:"La Gioconda", artist:"Leonardo da Vinci · c. 1503–1519",
+    artista:"Leonardo da Vinci", nac:"Italiano (Vinci, 1452 – Amboise, 1519)", fecha:"c. 1503–1519",
+    sala:"Sala 711 · Salle des États", ala:"Ala Denon · Planta 1",
+    color:"#9a6f2a",
+    desc:"La pintura más famosa del mundo. Solo 77×53 cm — más pequeña de lo que imaginas — pero la sala entera orbita a su alrededor. Llega a primera hora o después de las 17h." },
+  { num:"3", title:"Las bodas de Caná", artist:"Paolo Veronese · 1563",
+    artista:"Paolo Veronese", nac:"Italiano, Escuela veneciana (1528–1588)", fecha:"1563",
+    sala:"Sala 711 · Salle des États", ala:"Ala Denon · Planta 1",
+    color:"#9a6f2a",
+    desc:"El cuadro más grande del Louvre: 9,9 × 6,7 metros. Robado por Napoleón en Venecia, nunca regresó. Está justo enfrente de la Gioconda. Casi nadie lo mira." },
+  { num:"4", title:"La balsa de la Medusa", artist:"Théodore Géricault · 1819",
+    artista:"Théodore Géricault", nac:"Francés (Rouen, 1791 – París, 1824)", fecha:"1818–1819",
+    sala:"Sala 700 · Sala Mollien", ala:"Ala Denon · Planta 1",
+    color:"#8b3a1e",
+    desc:"Casi 5×7 metros. El naufragio de la fragata Méduse: 147 personas a la deriva, 15 sobrevivieron. Ícono del Romanticismo francés y de la crítica política." },
+  { num:"5", title:"La Libertad guiando al pueblo", artist:"Eugène Delacroix · 1830",
+    artista:"Eugène Delacroix", nac:"Francés (Charenton, 1798 – París, 1863)", fecha:"1830",
+    sala:"Sala 700 · Sala Mollien", ala:"Ala Denon · Planta 1",
+    color:"#8b3a1e",
+    desc:"Marianne sobre la barricada con la bandera tricolor. Pintada en conmemoración de los Tres Días Gloriosos de 1830. Misma sala que La balsa de la Medusa." },
+  { num:"6", title:"Venus de Milo", artist:"Anónimo griego · c. 130–100 a.C.",
+    artista:"Anónimo", nac:"Grecia · Período helenístico tardío", fecha:"c. 130–100 a.C.",
+    sala:"Sala 345 · Salle de la Vénus de Milo", ala:"Ala Sully · Planta 0 (baja)",
+    color:"#1a6b4a",
+    desc:"Cruza el Cour Napoléon hacia el Ala Sully. Junto a la Victoria y la Gioconda forma la trinidad del Louvre. Sus brazos ya faltaban cuando llegó al museo en 1821. La sala lleva su nombre." },
+  { num:"7", title:"El escriba sentado", artist:"Anónimo egipcio · c. 2620–2350 a.C.",
+    artista:"Anónimo", nac:"Egipto antiguo · Dinastía IV–V", fecha:"c. 2620–2350 a.C.",
+    sala:"Sala 635", ala:"Ala Sully · Planta 1 · Antigüedades egipcias",
+    color:"#8b6010",
+    desc:"Sube a Planta 1 dentro de Sully. Sus ojos de cristal de roca llevan más de 4.500 años mirando. Descubierto en Saqqara en 1850. Una de las presencias más inquietantes del museo." },
+  { num:"8", title:"Los esclavos", artist:"Miguel Ángel · 1513–1515",
+    artista:"Miguel Ángel Buonarroti", nac:"Italiano (Caprese, 1475 – Roma, 1564)", fecha:"1513–1515",
+    sala:"⚠️ Exp. temporal · Hall Napoléon (hasta julio 2026)", ala:"Sala habitual: S.403 · Ala Denon · P.0",
+    color:"#2c5f8a",
+    desc:"El Esclavo moribundo y el Esclavo rebelde. Comisionados para la tumba del Papa Julio II. Las figuras emergen del mármol sin terminar de liberarse. Actualmente en la exposición Michelangelo-Rodin en el Hall Napoléon — a la entrada." },
+  { num:"9", title:"La encajera", artist:"Johannes Vermeer · c. 1669–1670",
+    artista:"Johannes Vermeer", nac:"Neerlandés (Delft, 1632–1675)", fecha:"c. 1669–1670",
+    sala:"Sala 837 · Pinturas flamencas y holandesas", ala:"Ala Richelieu · Planta 2",
+    color:"#2c5f8a",
+    desc:"Una de las pinturas más pequeñas y perfectas del Louvre. La luz de Vermeer en estado puro. Solo existen 34–36 obras de Vermeer en el mundo. Fin del recorrido." },
+];
+
+const sl = document.getElementById('stepList');
+obras.forEach((o,i) => {
+  const d = document.createElement('div');
+  d.className='step-item'; d.id='si'+i; d.onclick=()=>activar(i);
+  d.innerHTML=`<div class="step-n" style="border-color:${o.color};color:${o.color}">${o.num}</div>
+    <div class="step-info"><div class="step-name">${o.title}</div><div class="step-sala">${o.sala}</div></div>`;
+  sl.appendChild(d);
+});
+
+function activar(i) {
+  document.querySelectorAll('.pin').forEach(p=>p.classList.remove('active'));
+  const pin=document.getElementById('p'+i);
+  if(pin) pin.classList.add('active');
+  document.querySelectorAll('.step-item').forEach((s,j)=>s.classList.toggle('cur',j===i));
+  const o=obras[i];
+  const hdr=document.getElementById('infoHdr');
+  hdr.setAttribute('data-n',o.num);
+  hdr.style.borderBottomColor=o.color;
+  const badge=document.getElementById('salaBadge');
+  badge.textContent='Parada '+(o.num==='·'?'0':o.num);
+  badge.style.background=o.color;
+  document.getElementById('iTitle').textContent=o.title;
+  document.getElementById('iArtist').textContent=o.artist;
+  document.getElementById('iDesc').textContent=o.desc;
+  document.getElementById('dArtista').textContent=o.artista;
+  document.getElementById('dNac').textContent=o.nac;
+  document.getElementById('dFecha').textContent=o.fecha;
+  document.getElementById('dSala').textContent=o.sala;
+  document.getElementById('dAla').textContent=o.ala;
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('infoCard').classList.add('vis');
+}
+</script>
+</body>
+</html>
